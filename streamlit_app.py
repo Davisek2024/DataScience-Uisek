@@ -134,21 +134,59 @@ if carrera_col_name in input_data.columns:
     input_data[carrera_col_name] = 1
 
 
-# --- Predicción ---
+# --- Predicción y Clasificación de Riesgo ---
 original_prediction_proba = model.predict_proba(input_data)[0][1]
-display_prediction_proba = original_prediction_proba
 
 st.subheader('Resultado de la Predicción')
 col1, col2 = st.columns(2)
 with col1:
-    st.metric(label="Probabilidad de Deserción", value=f"{display_prediction_proba*100:.2f}%")
+    st.metric(label="Probabilidad de Deserción (Modelo)", value=f"{original_prediction_proba*100:.2f}%")
 with col2:
-    if display_prediction_proba >= 0.30: # Usando el umbral de 0.30 como recomendado
-        st.error('RIESGO DE DESERCIÓN')
-        st.write('Se recomienda una intervención inmediata.')
-    else:
-        st.success('RIESGO BAJO DE DESERCIÓN')
-        st.write('Monitoreo regular recomendado.')
+    # Lógica de categorización de riesgo personalizada para la presentación
+
+    # Business rule definitions
+    is_critico_business_rule = (
+        promedio_notas < 6.5 and
+        tiene_beca == 0 and
+        asistencia_porcentaje < 60.0
+    )
+
+    is_moderado_business_rule = (
+        (promedio_notas >= 6.5 and promedio_notas <= 7.0) or
+        (horas_trabajo_semanal > 20)
+    )
+
+    # Initialize risk level based on model probability thresholds
+    risk_level = "BAJO" # Default
+    risk_message = 'Seguimiento estándar. Baja probabilidad de deserción identificada.'
+
+    if original_prediction_proba > 0.50:
+        risk_level = "CRÍTICO"
+        risk_message = '¡Intervención inmediata recomendada! Alta probabilidad de deserción según el modelo.'
+    elif original_prediction_proba > 0.30:
+        risk_level = "MODERADO"
+        risk_message = 'Monitoreo activo y evaluación de apoyo necesario.'
+
+    # Now, business rules can escalate the risk, but not downgrade it.
+    # CRÍTICO business rule can override any current level if met
+    if is_critico_business_rule:
+        risk_level = "CRÍTICO"
+        risk_message = '¡Intervención inmediata recomendada! Múltiples factores de riesgo severos identificados por reglas de negocio.'
+    # MODERADO business rule can override BAJO if met, but not CRÍTICO or existing MODERADO
+    elif is_moderado_business_rule and risk_level == "BAJO":
+        risk_level = "MODERADO"
+        risk_message = 'Monitoreo activo y evaluación de apoyo necesario. Factores de riesgo moderados identificados por reglas de negocio.'
+
+    # Display based on final risk_level
+    if risk_level == "CRÍTICO":
+        st.error('NIVEL DE RIESGO: CRÍTICO')
+        st.write(risk_message)
+    elif risk_level == "MODERADO":
+        st.warning('NIVEL DE RIESGO: MODERADO')
+        st.write(risk_message)
+    else: # risk_level is "BAJO"
+        st.success('NIVEL DE RIESGO: BAJO')
+        st.write(risk_message)
 
 st.markdown('---')
 
@@ -158,4 +196,4 @@ st.write("Las variables se muestran ordenadas de mayor a menor importancia en la
 st.dataframe(importance_df)
 
 st.markdown('---')
-st.info("Ajusta los parámetros en la barra lateral izquierda para ver cómo afectan la probabilidad de deserción.")
+st.info("Ajusta los parámetros en la barra lateral izquierda para ver cómo afectan la probabilidad de deserción y el nivel de riesgo.")
