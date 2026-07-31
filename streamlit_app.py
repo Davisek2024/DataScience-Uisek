@@ -134,7 +134,7 @@ with tab1:
     riesgo_regla = ''
     if promedio_notas < 6.5 and tiene_beca == 0 and asistencia_porcentaje < 60:
         riesgo_regla = 'CRÍTICO'
-    elif promedio_notas <= 7.0 or horas_trabajo_semanal > 20:
+    elif promedio_notas < 6.0 or horas_trabajo_semanal > 20:
         riesgo_regla = 'MODERADO'
 
     # Clasificación por niveles de riesgo y texto coloreado
